@@ -1,75 +1,63 @@
-# React + TypeScript + Vite
+# Why Duplicate Keys Break React
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive demo showing what happens when two list items share the same `key` prop in React.
 
-Currently, two official plugins are available:
+## The Bug
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```tsx
+const [items, setItems] = useState([
+  { id: "1", text: "Item A" },
+  { id: "1", text: "Item B" }, // same key as Item A
+  { id: "3", text: "Item C" },
+  { id: "4", text: "Item D" },
+]);
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+When you remove **Item A**, React sees that `key="1"` still exists (Item B) and reuses Item A's DOM node instead of removing it. The result: **Item B inherits Item A's input state** — text you typed in one input "jumps" to the other.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Try It Yourself
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Type something in each input field
+2. Click **Remove Item A**
+3. Notice how Item B's input now shows what you typed for Item A
+
+## Why This Happens
+
+React uses `key` to match elements between renders. When two siblings share a key, React can't tell them apart. On re-render it:
+
+1. Sees `key="1"` in both the old and new tree
+2. Assumes they're the **same element** — reuses the DOM node
+3. Updates the text content (`"Item A"` → `"Item B"`) but **keeps the input state**
+
+This is why React warns:
+
+> ⚠️ Warning: Encountered two children with the same key, `"1"`. Keys should be unique so that components maintain their identity across updates.
+
+## The Fix
+
+Always use unique keys. If your data doesn't have unique IDs, generate them — don't use array indices for lists that can change.
+
+```tsx
+// Bad
+items.map((item) => <li key={item.id}>...)
+
+// Good — ensure IDs are actually unique
+items.map((item) => <li key={item.uniqueId}>...)
 ```
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+## Stack
+
+- React 19
+- TypeScript
+- Vite
+
+## License
+
+MIT
